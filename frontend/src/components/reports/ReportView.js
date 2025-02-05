@@ -47,7 +47,7 @@ const ReportView = () => {
 
   useEffect(() => {
     fetchReport();
-  }, [id]);
+  }, [id, fetchReport]);
 
   const fetchReport = async () => {
     try {

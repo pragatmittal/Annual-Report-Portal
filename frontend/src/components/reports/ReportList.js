@@ -53,7 +53,7 @@ const ReportList = () => {
 
   useEffect(() => {
     fetchReports();
-  }, [page, rowsPerPage, search, statusFilter, yearFilter]);
+  }, [page, rowsPerPage, search, statusFilter, yearFilter, fetchReports]);
 
   const fetchReports = async () => {
     try {
