@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -31,7 +31,8 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 const statusColors = {
   draft: 'default',
@@ -51,14 +52,10 @@ const ReportList = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
 
-  useEffect(() => {
-    fetchReports();
-  }, [page, rowsPerPage, search, statusFilter, yearFilter, fetchReports]);
-
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/api/reports`,
+        `${process.env.REACT_APP_API_URL}/reports`,
         {
           params: {
             page: page + 1,
@@ -69,13 +66,17 @@ const ReportList = () => {
           },
         }
       );
-      setReports(response.data.reports);
+      setReports(response.data.reports || []);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching reports:', error);
       setLoading(false);
     }
-  };
+  }, [page, rowsPerPage, search, statusFilter, yearFilter]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -89,7 +90,7 @@ const ReportList = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this report?')) {
       try {
-        await axios.delete(`${process.env.REACT_APP_API_URL}/api/reports/${id}`);
+        await axios.delete(`${process.env.REACT_APP_API_URL}/reports/${id}`);
         fetchReports();
       } catch (error) {
         console.error('Error deleting report:', error);
@@ -111,134 +112,131 @@ const ReportList = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box display="flex" justifyContent="space-between" mb={4}>
-        <Typography variant="h4" component="h1">
-          Reports
-        </Typography>
-        {user?.permissions?.includes('create') && (
+    <Box sx={{ flexGrow: 1, p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h4">Reports</Typography>
+        {user && (
           <Button
+            component={Link}
+            to="/reports/create"
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/reports/create')}
           >
-            Create New Report
+            Create Report
           </Button>
         )}
       </Box>
-
-      {/* Filters */}
-      <Box display="flex" gap={2} mb={3}>
-        <TextField
-          variant="outlined"
-          placeholder="Search reports..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ flexGrow: 1 }}
-        />
-        <FormControl sx={{ minWidth: 120 }}>
-          <InputLabel>Status</InputLabel>
-          <Select
-            value={statusFilter}
-            label="Status"
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <MenuItem value="all">All</MenuItem>
-            <MenuItem value="draft">Draft</MenuItem>
-            <MenuItem value="review">Review</MenuItem>
-            <MenuItem value="approved">Approved</MenuItem>
-            <MenuItem value="published">Published</MenuItem>
-          </Select>
-        </FormControl>
-        <FormControl sx={{ minWidth: 120 }}>
-          <InputLabel>Year</InputLabel>
-          <Select
-            value={yearFilter}
-            label="Year"
-            onChange={(e) => setYearFilter(e.target.value)}
-          >
-            <MenuItem value="all">All</MenuItem>
-            <MenuItem value="2024">2024</MenuItem>
-            <MenuItem value="2023">2023</MenuItem>
-            <MenuItem value="2022">2022</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Title</TableCell>
-              <TableCell>Academic Year</TableCell>
-              <TableCell>Department</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Last Modified</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {reports.map((report) => (
-              <TableRow key={report._id}>
-                <TableCell>{report.title}</TableCell>
-                <TableCell>{report.academicYear}</TableCell>
-                <TableCell>{report.metadata.department}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={report.status.charAt(0).toUpperCase() + report.status.slice(1)}
-                    color={statusColors[report.status]}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>
-                  {new Date(report.updatedAt).toLocaleDateString()}
-                </TableCell>
-                <TableCell align="right">
-                  <IconButton
-                    color="primary"
-                    onClick={() => navigate(`/reports/${report._id}`)}
-                  >
-                    <ViewIcon />
-                  </IconButton>
-                  {user?.permissions?.includes('edit') && (
-                    <IconButton
-                      color="primary"
-                      onClick={() => navigate(`/reports/${report._id}/edit`)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  )}
-                  {user?.permissions?.includes('delete') && (
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDelete(report._id)}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={reports.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-      </TableContainer>
-    </Container>
+      <Paper sx={{ p: 2 }}>
+        {reports.length > 0 ? (
+          <>
+            <Box sx={{ mb: 3 }}>
+              <TextField
+                placeholder="Search reports..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mr: 2 }}
+              />
+              <FormControl sx={{ minWidth: 120, mr: 2 }}>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={statusFilter}
+                  label="Status"
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <MenuItem value="all">All</MenuItem>
+                  <MenuItem value="draft">Draft</MenuItem>
+                  <MenuItem value="review">In Review</MenuItem>
+                  <MenuItem value="approved">Approved</MenuItem>
+                  <MenuItem value="published">Published</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl sx={{ minWidth: 120 }}>
+                <InputLabel>Year</InputLabel>
+                <Select
+                  value={yearFilter}
+                  label="Year"
+                  onChange={(e) => setYearFilter(e.target.value)}
+                >
+                  <MenuItem value="all">All</MenuItem>
+                  <MenuItem value="2024">2024</MenuItem>
+                  <MenuItem value="2023">2023</MenuItem>
+                  <MenuItem value="2022">2022</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Title</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Academic Year</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {reports.map((report) => (
+                    <TableRow key={report._id}>
+                      <TableCell>{report.title}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={report.status}
+                          color={statusColors[report.status]}
+                        />
+                      </TableCell>
+                      <TableCell>{report.academicYear}</TableCell>
+                      <TableCell>{report.metadata?.department}</TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          onClick={() => navigate(`/reports/${report._id}`)}
+                        >
+                          <ViewIcon />
+                        </IconButton>
+                        {user && (
+                          <>
+                            <IconButton
+                              onClick={() =>
+                                navigate(`/reports/${report._id}/edit`)
+                              }
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => handleDelete(report._id)}
+                              color="error"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                component="div"
+                count={reports.length}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            </TableContainer>
+          </>
+        ) : (
+          <Typography variant="body1">No reports found.</Typography>
+        )}
+      </Paper>
+    </Box>
   );
 };
 

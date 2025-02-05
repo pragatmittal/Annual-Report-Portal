@@ -58,26 +58,21 @@ function App() {
 
             {/* Protected routes */}
             <Route
-              path="/*"
               element={
                 <PrivateRoute>
-                  <Layout>
-                    <Routes>
-                      <Route index element={<Navigate to="/dashboard" replace />} />
-                      <Route path="dashboard" element={<Dashboard />} />
-                      <Route path="reports" element={<ReportList />} />
-                      <Route path="reports/create" element={<ReportCreate />} />
-                      <Route path="reports/:id" element={<ReportView />} />
-                      <Route path="reports/:id/edit" element={<ReportEdit />} />
-                      <Route path="profile" element={<Profile />} />
-                    </Routes>
-                  </Layout>
+                  <Layout />
                 </PrivateRoute>
               }
-            />
-
-            {/* 404 route */}
-            <Route path="*" element={<NotFound />} />
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/reports" element={<ReportList />} />
+              <Route path="/reports/create" element={<ReportCreate />} />
+              <Route path="/reports/:id" element={<ReportView />} />
+              <Route path="/reports/:id/edit" element={<ReportEdit />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Routes>
         </Router>
       </AuthProvider>

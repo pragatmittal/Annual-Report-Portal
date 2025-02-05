@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -16,11 +16,12 @@ import {
   Stepper,
   Step,
   StepLabel,
+  CircularProgress,
 } from '@mui/material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const steps = ['Basic Information', 'Institution Details', 'Report Sections'];
 
@@ -41,9 +42,15 @@ const validationSchema = Yup.object({
 
 const ReportCreate = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
 
   const formik = useFormik({
     initialValues: {
@@ -70,7 +77,7 @@ const ReportCreate = () => {
     onSubmit: async (values) => {
       try {
         const response = await axios.post(
-          `${process.env.REACT_APP_API_URL}/api/reports`,
+          `${process.env.REACT_APP_API_URL}/reports`,
           values
         );
         navigate(`/reports/${response.data._id}`);
@@ -79,6 +86,18 @@ const ReportCreate = () => {
       }
     },
   });
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const handleNext = () => {
     setActiveStep((prevStep) => prevStep + 1);
@@ -127,13 +146,8 @@ const ReportCreate = () => {
                 label="Academic Year"
                 value={formik.values.academicYear}
                 onChange={formik.handleChange}
-                error={
-                  formik.touched.academicYear &&
-                  Boolean(formik.errors.academicYear)
-                }
-                helperText={
-                  formik.touched.academicYear && formik.errors.academicYear
-                }
+                error={formik.touched.academicYear && Boolean(formik.errors.academicYear)}
+                helperText={formik.touched.academicYear && formik.errors.academicYear}
               />
             </Grid>
           </Grid>
@@ -209,6 +223,7 @@ const ReportCreate = () => {
                   <MenuItem value="Physics">Physics</MenuItem>
                   <MenuItem value="Chemistry">Chemistry</MenuItem>
                   <MenuItem value="Biology">Biology</MenuItem>
+                  <MenuItem value="Engineering">Engineering</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -221,7 +236,17 @@ const ReportCreate = () => {
               <Box key={index} sx={{ mb: 4 }}>
                 <Grid container spacing={3}>
                   <Grid item xs={12}>
-                    <Typography variant="h6">Section {index + 1}</Typography>
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="h6">Section {index + 1}</Typography>
+                      {index > 0 && (
+                        <Button
+                          color="error"
+                          onClick={() => handleRemoveSection(index)}
+                        >
+                          Remove Section
+                        </Button>
+                      )}
+                    </Box>
                   </Grid>
                   <Grid item xs={12}>
                     <TextField
@@ -259,16 +284,6 @@ const ReportCreate = () => {
                       }
                     />
                   </Grid>
-                  {index > 0 && (
-                    <Grid item xs={12}>
-                      <Button
-                        color="error"
-                        onClick={() => handleRemoveSection(index)}
-                      >
-                        Remove Section
-                      </Button>
-                    </Grid>
-                  )}
                 </Grid>
               </Box>
             ))}
@@ -283,16 +298,14 @@ const ReportCreate = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant="h4" gutterBottom>
           Create New Report
         </Typography>
-
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
         )}
-
         <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
           {steps.map((label) => (
             <Step key={label}>
@@ -300,11 +313,9 @@ const ReportCreate = () => {
             </Step>
           ))}
         </Stepper>
-
         <form onSubmit={formik.handleSubmit}>
           {getStepContent(activeStep)}
-
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+          <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
             {activeStep > 0 && (
               <Button onClick={handleBack} sx={{ mr: 1 }}>
                 Back
@@ -315,12 +326,13 @@ const ReportCreate = () => {
                 Next
               </Button>
             ) : (
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={formik.isSubmitting}
-              >
-                Create Report
+              <Button type="submit" variant="contained" disabled={formik.isSubmitting}>
+                {formik.isSubmitting ? (
+                  <>
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                    Creating...
+                  </>
+                ) : 'Submit Report'}
               </Button>
             )}
           </Box>

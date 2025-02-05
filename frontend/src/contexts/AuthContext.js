@@ -2,26 +2,35 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
+// Set axios defaults for all requests
+axios.defaults.withCredentials = true;
+
+// Add axios interceptor to handle token
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
     return Promise.reject(error);
   }
 );
 
-const defaultContext = {
-  user: null,
-  loading: true,
-  login: async () => ({ success: false, error: 'Not implemented' }),
-  register: async () => ({ success: false, error: 'Not implemented' }),
-  logout: () => {},
-  updateUser: () => {},
-};
-
-const AuthContext = createContext(defaultContext);
+const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -32,62 +41,74 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    // Try to get user from localStorage on initial load
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        if (decoded.exp * 1000 < Date.now()) {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const decoded = jwtDecode(token);
+          if (decoded.exp * 1000 < Date.now()) {
+            // Token expired
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+          } else {
+            // Valid token, fetch fresh user data
+            await fetchUser();
+          }
+        } catch (error) {
           localStorage.removeItem('token');
+          localStorage.removeItem('user');
           setUser(null);
-        } else {
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          fetchUser();
         }
-      } catch (error) {
-        localStorage.removeItem('token');
-        setUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const fetchUser = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setUser(null);
-        return;
-      }
-
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      setUser(response.data);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/auth/me`);
+      const userData = response.data;
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
     } catch (error) {
       console.error('Error fetching user:', error);
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setUser(null);
     }
   };
 
   const login = async (email, password) => {
     try {
+      console.log('Attempting login with:', { email });
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, {
         email,
         password,
       });
-      const { token, user } = response.data;
+      const { token, user: userData } = response.data;
+      
+      // Store token and user data
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
+      
+      setUser(userData);
       return { success: true };
     } catch (error) {
+      console.error('Login error:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.message || 'An error occurred during login',
@@ -97,13 +118,21 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
+      console.log('Registering with:', userData);
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, userData);
-      const { token, user } = response.data;
+      const { token, user: newUser } = response.data;
+      
+      // Store token and user data
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(newUser));
+      
+      // Set axios default header
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
+      
+      setUser(newUser);
       return { success: true };
     } catch (error) {
+      console.error('Registration error:', error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data?.message || 'An error occurred during registration',
@@ -111,14 +140,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
-    setUser(null);
+  const logout = async () => {
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/auth/logout`);
+    } catch (error) {
+      console.error('Error during logout:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
+    }
   };
 
-  const updateUser = (newUser) => {
-    setUser(newUser);
+  const updateUser = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const value = {
