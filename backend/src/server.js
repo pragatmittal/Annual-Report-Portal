@@ -37,6 +37,11 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/integration', integrationRoutes);
 
+// Add this new root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to Annual Report Portal API' });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
