@@ -8,15 +8,15 @@ import { AuthProvider } from './contexts/AuthContext';
 
 // Components
 import Layout from './components/Layout';
-import PrivateRoute from './components/PrivateRoute';
+import PrivateRoute from './components/auth/PrivateRoute';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/dashboard/Dashboard';
 import ReportList from './components/reports/ReportList';
 import ReportCreate from './components/reports/ReportCreate';
 import ReportView from './components/reports/ReportView';
 import ReportEdit from './components/reports/ReportEdit';
-import Profile from './components/Profile';
+import Profile from './components/profile/Profile';
 import NotFound from './components/common/NotFound';
 
 // Create theme
@@ -57,57 +57,24 @@ function App() {
             <Route path="/register" element={<Register />} />
 
             {/* Protected routes */}
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route
-                path="dashboard"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="reports"
-                element={
-                  <PrivateRoute>
-                    <ReportList />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="reports/create"
-                element={
-                  <PrivateRoute>
-                    <ReportCreate />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="reports/:id"
-                element={
-                  <PrivateRoute>
-                    <ReportView />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="reports/:id/edit"
-                element={
-                  <PrivateRoute>
-                    <ReportEdit />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="profile"
-                element={
-                  <PrivateRoute>
-                    <Profile />
-                  </PrivateRoute>
-                }
-              />
-            </Route>
+            <Route
+              path="/*"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Routes>
+                      <Route index element={<Navigate to="/dashboard" replace />} />
+                      <Route path="dashboard" element={<Dashboard />} />
+                      <Route path="reports" element={<ReportList />} />
+                      <Route path="reports/create" element={<ReportCreate />} />
+                      <Route path="reports/:id" element={<ReportView />} />
+                      <Route path="reports/:id/edit" element={<ReportEdit />} />
+                      <Route path="profile" element={<Profile />} />
+                    </Routes>
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
 
             {/* 404 route */}
             <Route path="*" element={<NotFound />} />

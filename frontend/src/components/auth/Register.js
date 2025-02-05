@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Container,
   Box,
@@ -14,6 +14,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
 } from '@mui/material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -42,6 +43,7 @@ const Register = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const formik = useFormik({
     initialValues: {
@@ -55,18 +57,32 @@ const Register = () => {
     validationSchema,
     onSubmit: async (values) => {
       try {
+        setLoading(true);
+        setError('');
         const { confirmPassword, ...registrationData } = values;
+        console.log('Sending registration data:', registrationData);
         const result = await register(registrationData);
         if (result.success) {
-          navigate('/dashboard', { replace: true });
+          navigate('/dashboard');
         } else {
           setError(result.error);
         }
       } catch (err) {
         setError('An error occurred during registration');
+        console.error('Registration error:', err);
+      } finally {
+        setLoading(false);
       }
     },
   });
+
+  if (!register) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   const departments = [
     'Computer Science',
@@ -214,9 +230,9 @@ const Register = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={formik.isSubmitting}
+              disabled={loading || formik.isSubmitting}
             >
-              Sign Up
+              {loading ? <CircularProgress size={24} /> : 'Sign Up'}
             </Button>
             <Box sx={{ textAlign: 'center' }}>
               <Link component={RouterLink} to="/login" variant="body2">

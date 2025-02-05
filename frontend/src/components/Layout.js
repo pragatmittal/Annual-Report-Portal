@@ -24,16 +24,20 @@ import {
   Person,
   ChevronLeft,
 } from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const drawerWidth = 240;
 
 const Layout = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuth() || {};
   const [open, setOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
+
+  if (!user) {
+    return null;
+  }
 
   const handleDrawerToggle = () => {
     setOpen(!open);
